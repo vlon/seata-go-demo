@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-	client.InitPath("./sample/conf/seatago.yml")
+	client.InitPath("./conf/seatago.yml")
 
 	r := gin.Default()
 
@@ -44,8 +44,31 @@ func main() {
 		return
 	}
 
+	userProviderProxy2, err := tcc.NewTCCServiceProxy(&RMService2{})
+	if err != nil {
+		log.Errorf("get userProviderProxy tcc service proxy error, %v", err.Error())
+		return
+	}
+
+	data := &OrderTblModel{
+		//Id:            1024,
+		UserId:        "NO-1000034",
+		CommodityCode: "C1000012",
+		Count:         1017,
+		Money:         119,
+		Descs:         "insert descggggg",
+	}
+
 	r.POST("/prepare", func(c *gin.Context) {
-		if _, err := userProviderProxy.Prepare(c, ""); err != nil {
+		if _, err := userProviderProxy.Prepare(c.Request.Context(), data); err != nil {
+			c.JSON(http.StatusOK, "prepare failure")
+			return
+		}
+		c.JSON(http.StatusOK, "prepare ok")
+	})
+
+	r.POST("/prepare2", func(c *gin.Context) {
+		if _, err := userProviderProxy2.Prepare(c.Request.Context(), data); err != nil {
 			c.JSON(http.StatusOK, "prepare failure")
 			return
 		}

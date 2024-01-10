@@ -38,6 +38,10 @@ type OrderTblModel struct {
 	Descs         string `gorm:"descs" json:"descs"`
 }
 
+func (o *OrderTblModel) TableName() string {
+	return "order_tbl"
+}
+
 func main() {
 	initConfig()
 	// insert
@@ -58,7 +62,7 @@ func initConfig() {
 var gormDB *gorm.DB
 
 func initDB() {
-	sqlDB, err := sql.Open(sql2.SeataATMySQLDriver, "root:12345678@tcp(127.0.0.1:3306)/seata_client?multiStatements=true&interpolateParams=true")
+	sqlDB, err := sql.Open(sql2.SeataATMySQLDriver, "root:root@tcp(127.0.0.1:33061)/seata_tbl?multiStatements=true&interpolateParams=true")
 	if err != nil {
 		panic("init service error")
 	}
@@ -66,12 +70,15 @@ func initDB() {
 	gormDB, err = gorm.Open(mysql.New(mysql.Config{
 		Conn: sqlDB,
 	}), &gorm.Config{})
+	if err != nil {
+		panic(err)
+	}
 }
 
 // insertData insert one data
 func insertData(ctx context.Context) error {
-	data := OrderTblModel{
-		Id:            1,
+	data := &OrderTblModel{
+		//Id:            2,
 		UserId:        "NO-100003",
 		CommodityCode: "C100001",
 		Count:         101,
@@ -79,7 +86,18 @@ func insertData(ctx context.Context) error {
 		Descs:         "insert desc",
 	}
 
-	return gormDB.WithContext(ctx).Table("order_tbl").Create(&data).Error
+	orders := make([]*OrderTblModel, 0)
+	err := gormDB.Model(&OrderTblModel{}).Find(&orders).Error
+	if err != nil {
+		panic(err)
+	}
+
+	err = gormDB.WithContext(ctx).Model(&OrderTblModel{}).Save(data).Error
+	if err != nil {
+		panic(err)
+	}
+
+	return err
 }
 
 // deleteData delete one data

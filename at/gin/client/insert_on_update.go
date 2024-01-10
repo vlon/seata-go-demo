@@ -44,7 +44,7 @@ func insertOnUpdateData(ctx context.Context) (re error) {
 
 func sampleInsertOnUpdate(ctx context.Context) {
 	if err := tm.WithGlobalTx(ctx, &tm.GtxConfig{
-		Name:    "ATSampleLocalGlobalTx_InsertOnUpdate",
+		Name:    "ATSampleLocalGlobalTx_Insert",
 		Timeout: time.Second * 30,
 	}, insertOnUpdateData); err != nil {
 		panic(fmt.Sprintf("tm insert on update data err, %v", err))

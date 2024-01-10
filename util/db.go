@@ -26,7 +26,7 @@ import (
 
 func GetAtMySqlDb() *sql.DB {
 	defaultEnv()
-	dsn := os.ExpandEnv("${MYSQL_USERNAME}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DB}?multiStatements=true&interpolateParams=true")
+	dsn := os.ExpandEnv("root:root@tcp(127.0.0.1:33061)/seata_tbl?multiStatements=true&interpolateParams=true")
 	dbAt, err := sql.Open(sql2.SeataATMySQLDriver, dsn)
 	if err != nil {
 		panic("init seata at mysql driver error")

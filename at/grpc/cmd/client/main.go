@@ -15,51 +15,49 @@
  * limitations under the License.
  */
 
+// Package main implements a client for Greeter service.
 package main
 
 import (
 	"context"
 	"flag"
-	"time"
-
-	"github.com/parnurzeal/gorequest"
-
+	"github.com/seata/seata-go-samples/at/grpc/unary"
 	"github.com/seata/seata-go/pkg/client"
-	"github.com/seata/seata-go/pkg/constant"
+	grpc2 "github.com/seata/seata-go/pkg/integration/grpc"
 	"github.com/seata/seata-go/pkg/tm"
 	"github.com/seata/seata-go/pkg/util/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 	flag.Parse()
-	client.InitPath("./conf/seatago.yml")
-	bgCtx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
-	defer cancel()
-	serverIpPort := "http://127.0.0.1:8080"
+	// to set up grpc env
+	// set up a connection to the server.
+	conn, err := grpc.Dial("localhost:50051",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(grpc2.ClientTransactionInterceptor))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
 
+	greeterClient := unary.NewGreeterClient(conn)
+	client.InitPath("./conf/seatago.yml")
 	tm.WithGlobalTx(
-		bgCtx,
+		context.Background(),
 		&tm.GtxConfig{
-			Name: "TccSampleLocalGlobalTx",
+			Name: "AtSampleLocalGlobalTx",
 		},
 		func(ctx context.Context) (re error) {
-			request := gorequest.New()
-			log.Infof("branch transaction begin")
-			request.Post(serverIpPort+"/prepare").
-				Set(constant.XidKey, tm.GetXID(ctx)).
-				End(func(response gorequest.Response, body string, errs []error) {
-					if len(errs) != 0 {
-						re = errs[0]
-					}
-				})
+			r1, err := greeterClient.Greet(ctx, &unary.Request{Name: "bruno"})
+			if err != nil {
+				log.Fatalf("could not do TestTCCServiceBusiness 1: %v", re)
+				return
+			}
+			log.Infof("-------------greet res: %s", r1)
 
-			request.Post(serverIpPort+"/prepare2").
-				Set(constant.XidKey, tm.GetXID(ctx)).
-				End(func(response gorequest.Response, body string, errs []error) {
-					if len(errs) != 0 {
-						re = errs[0]
-					}
-				})
 			return
 		})
+	<-make(chan struct{})
 }

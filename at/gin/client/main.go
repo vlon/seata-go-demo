@@ -20,6 +20,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"github.com/parnurzeal/gorequest"
+	"github.com/seata/seata-go/pkg/constant"
+	"github.com/seata/seata-go/pkg/tm"
+	"github.com/seata/seata-go/pkg/util/log"
+	"net/http"
 	"time"
 
 	"github.com/seata/seata-go/pkg/client"
@@ -35,11 +41,46 @@ func main() {
 	defer cancel()
 
 	// sample update
-	sampleUpdate(bgCtx)
-
+	//sampleUpdate(bgCtx)
+	//
 	// sample insert on update
-	sampleInsertOnUpdate(bgCtx)
+	//sampleInsertOnUpdate(bgCtx)
+	insertData(bgCtx)
 
-	// sample select for update
-	sampleSelectForUpdate(bgCtx)
+	//// sample select for update
+	//sampleSelectForUpdate(bgCtx)
+}
+
+func insert(ctx context.Context) (re error) {
+	request := gorequest.New()
+
+	log.Infof("branch transaction begin")
+	request.Post(serverIpPort+"/insertOnUpdateDataSuccess").
+		Set(constant.XidKey, tm.GetXID(ctx)).
+		End(func(response gorequest.Response, body string, errs []error) {
+			if response.StatusCode != http.StatusOK {
+				re = fmt.Errorf("insert on update data fail")
+			}
+		})
+
+	request.Post(serverIpPort+"/insertData").
+		Set(constant.XidKey, tm.GetXID(ctx)).
+		End(func(response gorequest.Response, body string, errs []error) {
+			if response.StatusCode != http.StatusOK {
+				re = fmt.Errorf("insert on update data fail")
+			}
+		})
+
+	log.Infof("branch transaction begin")
+
+	return
+}
+
+func insertData(ctx context.Context) {
+	if err := tm.WithGlobalTx(ctx, &tm.GtxConfig{
+		Name:    "ATSampleLocalGlobalTx_Insert",
+		Timeout: time.Second * 30,
+	}, insert); err != nil {
+		panic(fmt.Sprintf("tm insert on update data err, %v", err))
+	}
 }

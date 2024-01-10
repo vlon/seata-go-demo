@@ -15,51 +15,34 @@
  * limitations under the License.
  */
 
+// Package main implements a business for Greeter service.
 package main
 
 import (
-	"context"
-	"flag"
-	"time"
-
-	"github.com/parnurzeal/gorequest"
+	"fmt"
+	"github.com/seata/seata-go-samples/at/grpc/service"
+	"github.com/seata/seata-go-samples/at/grpc/unary"
+	"net"
 
 	"github.com/seata/seata-go/pkg/client"
-	"github.com/seata/seata-go/pkg/constant"
-	"github.com/seata/seata-go/pkg/tm"
+	grpc2 "github.com/seata/seata-go/pkg/integration/grpc"
 	"github.com/seata/seata-go/pkg/util/log"
+	"google.golang.org/grpc"
 )
 
 func main() {
-	flag.Parse()
 	client.InitPath("./conf/seatago.yml")
-	bgCtx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
-	defer cancel()
-	serverIpPort := "http://127.0.0.1:8080"
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 50051))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	log.Infof("server register")
+	s := grpc.NewServer(grpc.UnaryInterceptor(grpc2.ServerTransactionInterceptor))
 
-	tm.WithGlobalTx(
-		bgCtx,
-		&tm.GtxConfig{
-			Name: "TccSampleLocalGlobalTx",
-		},
-		func(ctx context.Context) (re error) {
-			request := gorequest.New()
-			log.Infof("branch transaction begin")
-			request.Post(serverIpPort+"/prepare").
-				Set(constant.XidKey, tm.GetXID(ctx)).
-				End(func(response gorequest.Response, body string, errs []error) {
-					if len(errs) != 0 {
-						re = errs[0]
-					}
-				})
+	unary.RegisterGreeterServer(s, service.NewGreetServer())
 
-			request.Post(serverIpPort+"/prepare2").
-				Set(constant.XidKey, tm.GetXID(ctx)).
-				End(func(response gorequest.Response, body string, errs []error) {
-					if len(errs) != 0 {
-						re = errs[0]
-					}
-				})
-			return
-		})
+	log.Infof("business listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }
